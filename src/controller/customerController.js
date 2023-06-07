@@ -1,44 +1,55 @@
 const custModel =require('../model/customerModel');
-const uuid=require('uuid')
+const uuid=require('uuid');
+const validator=require('../utils/validator')
 
 const createCustomer = async (req, res) => {
   try {
     const data=req.body;
-    if(!Object.keys(data).length > 0){
+    if(!validator.isValidRequestBody(data)){
       return res.status(400).send({status:false,message:"request body is not present"})
     }
-    const { firstName, lastName, mobileNumber, DOB, emailID,address, customerID,status } =req.body;
+    const { firstName, lastName, mobileNumber, DOB, emailID,address, customerID,status } =data;
 
     if(!firstName){
       return res.status(400).send({status:false,message:"First name is required"})
     }
+    if(!validator.isValid(firstName)){
+      return res.status(400).send({status:false,message:"First name is invalid"})
+    }
+    
     if(!lastName){
       return res.status(400).send({status:false,message:"last name is required"})
+    }
+    if(!validator.isValid(lastName)){
+      return res.status(400).send({status:false,message:"last name is invalid"})
     }
     if(!mobileNumber){
       return res.status(400).send({status:false,message:"mobileNumber is required"})
     }
-    if(mobileNumber>10 || mobileNumber<10){
-      return res.status(400).send({status:false,message:"mobile no. must be 10-digits long"})
+    if(validator.isValid(mobileNumber) || validator.isValidMobileNum(mobileNumber)){
+      return res.status(400).send({status:false,message:"Enter valid mobile number"})
     }
-    if(!DOB){
-      return res.status(400).send({status:false,message:"DOB is required"})
+    const dobFormat = /^\d{4}-\d{2}-\d{2}$/
+    if(!validator.isValid(DOB) || !dobFormat.test(DOB)){
+      return res.status(400).send({status:false,message:"DOB is Invalid"})
     }
+
     if(!emailID){
       return res.status(400).send({status:false,message:"email address is required"})
     }
-    const email = req.body.emailID;
 
-    const pattern =/^[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;
-    const found = email.match(pattern);
-    if (!found) {
+    if (!validator.isValidEmail(emailID)) {
       return res.status(400).send({ status: false, msg: "You give wrong Email format" });
     }
+    const enm=["Active","Inactive"]
+    if(!validator.isValid(status) ||!enm.includes(data.status)){
+      return res.status(400).send({status : false, message:"enter valid status"})
+  }
 
-    let matchData = {firstName:firstName, lastName: lastName, mobileNumber:mobileNumber, DOB: DOB, emailID:emailID,address:address, customerID:customerID,status:status};
+    
      data.customerID=uuid.v4()
 
-    const customer = await custModel.create(matchData);
+    const customer = await custModel.create(data);
     res.status(201).send({ status: true, data: customer });
   } catch (error) {
     console.log(error);
@@ -49,7 +60,7 @@ const getCustomer= async (req,res)=>{
   try{
   let findCust = await custModel.find({status:"Active"});
   if(!findCust){
-    return res.status(404).json({status:false,message:"customer doesn't exist"})
+    return res.status(404).json({status:false,message:"Active customer doesn't exist"})
   }
   res.status(200).json({status:true,data:findCust});
   }
@@ -61,12 +72,14 @@ const getCustomer= async (req,res)=>{
 
 const deleteCust= async (req,res)=>{
   try{
-    const custObjectId=req.params.id;
-    if(!custObjectId){
-      return res.status(400).json({status:false,message:"id is required"})
+    const custObjectId=req.params.custId;
+
+    const matchId= await custModel.findOne({customerID:custId,status:"Active"})
+    if(!matchId){
+      return res.status(400).json({status:false,message:"customer data not found"})
     }
     const deleteId= await custModel.findOneAndUpdate(
-      {_id:custObjectId},
+      {customerID:custObjectId},
       {$set:{status:"Inactive"}},
       {new:true}
     )
