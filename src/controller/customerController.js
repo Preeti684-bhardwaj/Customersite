@@ -26,9 +26,14 @@ const createCustomer = async (req, res) => {
     if(!mobileNumber){
       return res.status(400).send({status:false,message:"mobileNumber is required"})
     }
-    if(validator.isValid(mobileNumber) || validator.isValidMobileNum(mobileNumber)){
+    if(!validator.isValid(mobileNumber) || !validator.isValidMobileNum(mobileNumber)){
       return res.status(400).send({status:false,message:"Enter valid mobile number"})
     }
+    let checkMobNum= await custModel.findOne({ mobileNumber: mobileNumber });
+    if (checkMobNum) {
+      return res.status(401).send({ status: false, msg: "mobile number already exist" });
+    }
+
     const dobFormat = /^\d{4}-\d{2}-\d{2}$/
     if(!validator.isValid(DOB) || !dobFormat.test(DOB)){
       return res.status(400).send({status:false,message:"DOB is Invalid"})
@@ -40,6 +45,10 @@ const createCustomer = async (req, res) => {
 
     if (!validator.isValidEmail(emailID)) {
       return res.status(400).send({ status: false, msg: "You give wrong Email format" });
+    }
+    let checkEmail = await custModel.findOne({ emailID: emailID });
+    if (checkEmail) {
+      return res.status(401).send({ status: false, msg: "emailId already exist" });
     }
     const enm=["Active","Inactive"]
     if(!validator.isValid(status) ||!enm.includes(data.status)){
